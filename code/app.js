@@ -4,8 +4,20 @@ import { modelView, loadMatrix, multRotationX, multRotationY, multRotationZ, mul
 
 import * as CUBE from '../../libs/objects/cube.js';
 import * as CYLINDER from '../../libs/objects/cylinder.js'
+import * as SPHERE from '../../libs/objects/sphere.js';
 
 
+/**
+ * Constants
+ */
+const VP_DISTANCE = 1;
+
+const GRAY = vec3(0.5, 0.5, 0.5);
+const RED = vec3(1, 0, 0);
+const GREEN = vec3(0, 1, 0);
+const BLUE = vec3(0, 0, 1);
+const YELLOW = vec3(1, 1, 0);
+const BLACK = vec3(0, 0, 0);
 
 
 function setup(shaders) {
@@ -20,7 +32,7 @@ function setup(shaders) {
 
     let program = buildProgramFromSources(gl, shaders["shader.vert"], shaders["shader.frag"]);
 
-    let mProjection = ortho(-1 * aspect, aspect, -1, 1, 0.01, 3);
+    let mProjection = ortho(-VP_DISTANCE * aspect, VP_DISTANCE * aspect, -VP_DISTANCE, VP_DISTANCE, -3 * VP_DISTANCE, 3 * VP_DISTANCE);
     let mView = lookAt([2, 1.2, 1], [0, 0.6, 0], [0, 1, 0]);
 
     let zoom = 1.0;
@@ -36,56 +48,85 @@ function setup(shaders) {
 
     document.onkeydown = function (event) {
         switch (event.key) {
-            case '1':
-                // Front view
-                mView = lookAt([0, 0.6, 1], [0, 0.6, 0], [0, 1, 0]);
-                break;
-            case '2':
-                // Top view
-                mView = lookAt([0, 1.6, 0], [0, 0.6, 0], [0, 0, -1]);
-                break;
-            case '3':
-                // Right view
-                mView = lookAt([1, 0.6, 0.], [0, 0.6, 0], [0, 1, 0]);
-                break;
-            case '4':
-                mView = lookAt([2, 1.2, 1], [0, 0.6, 0], [0, 1, 0]);
-                break;
-            case '9':
-                mode = gl.LINES;
+            case 'h':
+                //Toggle this panel
+
                 break;
             case '0':
-                mode = gl.TRIANGLES;
+                //Toggle 1/4 views
+
                 break;
-            case 'p':
-                ag = Math.min(0.050, ag + 0.005);
+            case '1':
+                //Front view
+
                 break;
-            case 'o':
-                ag = Math.max(0, ag - 0.005);
+            case '2':
+                //Left view
+
+                break;
+            case '3':
+                //Top view
+
+                break;
+            case '4':
+                //4th view
+
+                break;
+            case '8':
+                //Toggle 4th view (Oblique vs Axonometric)
+
+                break;
+            case '9':
+                //Parallel vs Perspective
+
+                break;
+            case '':
+                //Toggle wireframe/solid
+
                 break;
             case 'q':
-                rg += 1;
+                //Move forward
+
                 break;
             case 'e':
-                rg -= 1;
+                //Move backward
+
                 break;
             case 'w':
-                rc = Math.min(120, rc + 1);
+                //Raise cannon
+
                 break;
             case 's':
-                rc = Math.max(-120, rc - 1);
+                //Lower cannon
+
                 break;
             case 'a':
-                rb -= 1;
+                //Rotate cabin ccw
+
                 break;
             case 'd':
-                rb += 1;
+                //Rotate cabin cw
+
                 break;
-            case '+':
-                zoom /= 1.1;
+            case 'r':
+                //Reset view parameters
+
                 break;
-            case '-':
-                zoom *= 1.1;
+            case 'ArrowLeft':
+                //Increase theta
+
+                break;
+            case 'ArrowRight':
+                //Decrease theta
+
+                break;
+            case 'ArrowUp':
+                //Increase gamma
+
+                break;
+            case 'ArrowDown':
+                //Decrease gamma
+
                 break;
         }
     }
@@ -95,6 +136,7 @@ function setup(shaders) {
 
     CUBE.init(gl);
     CYLINDER.init(gl);
+    SPHERE.init(gl);
 
     window.requestAnimationFrame(render);
 
@@ -107,6 +149,15 @@ function setup(shaders) {
 
         gl.viewport(0, 0, canvas.width, canvas.height);
         mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, 0.01, 3);
+    }
+
+    function drawObjects(obj, color) {
+        uploadModelView();
+        const uColor = gl.getUniformLocation(program, "u_color");
+        gl.uniform3fv(uColor, color);
+        obj.draw(gl, program, gl.TRIANGLES);
+        gl.uniform3fv(uColor, BLACK);
+        obj.draw(gl, program, gl.LINES);
     }
 
     function uploadProjection() {
