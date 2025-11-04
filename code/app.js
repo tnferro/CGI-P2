@@ -1,16 +1,16 @@
-import { buildProgramFromSources, loadShadersFromURLS, setupWebGL } from "../../libs/utils.js";
-import { ortho, lookAt, flatten } from "../../libs/MV.js";
-import { modelView, loadMatrix, multRotationX, multRotationY, multRotationZ, multScale, multTranslation, popMatrix, pushMatrix } from "../../libs/stack.js";
+import { buildProgramFromSources, loadShadersFromURLS, setupWebGL } from "../libs/utils.js";
+import { ortho, lookAt, flatten, vec3, rotateX, rotateY, mult, perspective } from "../libs/MV.js";
+import { modelView, loadMatrix, multRotationX, multRotationY, multRotationZ, multScale, multTranslation, popMatrix, pushMatrix } from "../libs/stack.js";
 
 import * as CUBE from '../../libs/objects/cube.js';
-import * as CYLINDER from '../../libs/objects/cylinder.js'
+import * as CYLINDER from '../../libs/objects/cylinder.js';
 import * as SPHERE from '../../libs/objects/sphere.js';
 
 
 /**
  * Constants
  */
-const VP_DISTANCE = 1;
+const VP_DISTANCE = 32;
 
 const GRAY = vec3(0.5, 0.5, 0.5);
 const RED = vec3(1, 0, 0);
@@ -18,7 +18,29 @@ const GREEN = vec3(0, 1, 0);
 const BLUE = vec3(0, 0, 1);
 const YELLOW = vec3(1, 1, 0);
 const BLACK = vec3(0, 0, 0);
+const WHITE_GREY = vec3(0.9, 0.9, 0.9);
+const LIGHT_GREY = vec3(0.7, 0.7, 0.7);
 
+const FLOOR_DIAMETER = 2;
+const FLOOR_HEIGHT = 0.3;
+
+/**
+ * Flag to determine if four views are displayed
+ * @type {boolean}
+ */
+let isFourViews = false;
+
+/**
+ * Flag to determine if the orthogonal projection is axonometric or oblique
+ * @type {boolean}
+ */
+let isAxonometric = false;
+
+/**
+ * Flag to determine if the projection is Perspective or Orthogonal
+ * @type {boolean}
+ */
+let isPerspective = false;
 
 function setup(shaders) {
     let canvas = document.getElementById("gl-canvas");
@@ -28,12 +50,26 @@ function setup(shaders) {
     let gl = setupWebGL(canvas);
 
     // Drawing mode (gl.LINES or gl.TRIANGLES)
-    let mode = gl.LINES;
+    let mode = gl.TRIANGLES;
+
+    let gamma = 10; // Initial gamma angle
+    let theta = 60; // Initial theta angle
+
+    // Get elements to display angles
+    let gammaElement = document.getElementById('gamma');
+    let thetaElement = document.getElementById('theta');
+
+    // Update displayed angles
+    gammaElement.textContent = `Gamma: ${gamma}°`;
+    thetaElement.textContent = `Theta: ${theta}°`;
 
     let program = buildProgramFromSources(gl, shaders["shader.vert"], shaders["shader.frag"]);
 
     let mProjection = ortho(-VP_DISTANCE * aspect, VP_DISTANCE * aspect, -VP_DISTANCE, VP_DISTANCE, -3 * VP_DISTANCE, 3 * VP_DISTANCE);
-    let mView = lookAt([2, 1.2, 1], [0, 0.6, 0], [0, 1, 0]);
+
+    let axView = mult(lookAt([0, 0, VP_DISTANCE], [0, 0, 0], [0, 1, 0]), mult(rotateX(gamma), rotateY(theta)));
+    let obliqueView = mult(lookAt([VP_DISTANCE, VP_DISTANCE / 2, VP_DISTANCE], [0, 0, 0], [0, 1, 0]), mult(rotateX(0), rotateY(0)));
+    let mView = axView; // Initialize model view matrix
 
     let zoom = 1.0;
 
@@ -46,6 +82,13 @@ function setup(shaders) {
     resize_canvas();
     window.addEventListener("resize", resize_canvas);
 
+    // Event listener for mouse wheel to zoom in/out
+    canvas.addEventListener('wheel', (event) => {
+        if (event.deltaY > 0)
+            zoom *= 1.1; // Zoom in
+        else zoom /= 1.1; // Zoom out
+    });
+
     document.onkeydown = function (event) {
         switch (event.key) {
             case 'h':
@@ -54,35 +97,54 @@ function setup(shaders) {
                 break;
             case '0':
                 //Toggle 1/4 views
-
+                isPerspective = false;
+                isFourViews = !isFourViews;
                 break;
             case '1':
                 //Front view
-
+                isPerspective = false;
+                isFourViews = false;
+                mView = lookAt([0, 0.6, 1], [0, 0.6, 0], [0, 1, 0]);
                 break;
             case '2':
                 //Left view
-
+                isPerspective = false;
+                isFourViews = false;
+                mView = lookAt([-1, 0.6, 0], [0, 0.6, 0], [0, 1, 0]);
                 break;
             case '3':
                 //Top view
-
+                isPerspective = false;
+                isFourViews = false;
+                mView = lookAt([0, 2, 0], [0, 0.6, 0], [0, 0, 1]);
                 break;
             case '4':
                 //4th view
-
+                isPerspective = false;
+                isFourViews = false;
+                isAxonometric = true;
+                mView = axView;
                 break;
             case '8':
                 //Toggle 4th view (Oblique vs Axonometric)
-
+                isPerspective = false;
+                isFourViews = false;
+                if (!isAxonometric) {
+                    mView = obliqueView;
+                }
+                else {
+                    mView = axView;
+                }
+                isAxonometric = !isAxonometric
                 break;
             case '9':
                 //Parallel vs Perspective
-
+                isFourViews = false;
+                isPerspective = !isPerspective;
                 break;
-            case '':
+            case ' ':
                 //Toggle wireframe/solid
-
+                mode = mode === gl.LINES ? gl.TRIANGLES : gl.LINES;
                 break;
             case 'q':
                 //Move forward
@@ -110,23 +172,37 @@ function setup(shaders) {
                 break;
             case 'r':
                 //Reset view parameters
-
+                isFourViews = false;
+                isAxonometric = true;
+                mView = axView;
+                gamma = 10;
+                theta = 60;
+                updateAngles();
+                zoom = 1.0;
                 break;
             case 'ArrowLeft':
                 //Increase theta
-
+                if (theta < 360) theta += 1;
+                else theta = 0;
+                updateAngles(); // Update angles displayed
                 break;
             case 'ArrowRight':
                 //Decrease theta
-
+                if (theta > -360) theta -= 1;
+                else theta = 0;
+                updateAngles(); // Update angles displayed
                 break;
             case 'ArrowUp':
                 //Increase gamma
-
+                if (gamma < 360) gamma += 1;
+                else gamma = 0;
+                updateAngles(); // Update angles displayed
                 break;
             case 'ArrowDown':
                 //Decrease gamma
-
+                if (gamma > -360) gamma -= 1;
+                else gamma = 0;
+                updateAngles(); // Update angles displayed
                 break;
         }
     }
@@ -141,6 +217,23 @@ function setup(shaders) {
     window.requestAnimationFrame(render);
 
 
+    function getAxonometricView(gamma, theta) {
+        loadMatrix(lookAt([0, 0, VP_DISTANCE], [0, 0, 0], [0, 1, 0]));
+        multRotationX(gamma);
+        multRotationY(theta);
+        return modelView();
+    }
+
+    /**
+     * Updates the angles displayed on the control panel
+     */
+    function updateAngles() {
+        gammaElement.textContent = `Gamma: ${gamma}°`;
+        thetaElement.textContent = `Theta: ${theta}°`;
+        axView = getAxonometricView(gamma, theta);
+        mView = axView;
+    }
+
     function resize_canvas(event) {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -148,7 +241,13 @@ function setup(shaders) {
         aspect = canvas.width / canvas.height;
 
         gl.viewport(0, 0, canvas.width, canvas.height);
-        mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, 0.01, 3);
+
+        if (isPerspective) {
+            const fovy = 45 * zoom;
+            mProjection = perspective(fovy, aspect, 0.01, 100);
+        }
+        else
+            mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, 0.01, 3);
     }
 
     function drawObjects(obj, color) {
@@ -172,106 +271,118 @@ function setup(shaders) {
         gl.uniformMatrix4fv(gl.getUniformLocation(program, name), false, flatten(m));
     }
 
-    function UpperArm() {
-        pushMatrix()
-        multScale([0.4, 0.1, 0.4]);
-        multTranslation([0, 0.5, 0]);
-
-        uploadModelView();
-        CYLINDER.draw(gl, program, mode);
-        popMatrix()
-        multTranslation([0, 0.1, 0]);
-        multScale([0.05, 0.6, 0.05]);
-        multTranslation([0, 0.5, 0]);
-
-        uploadModelView();
-        CUBE.draw(gl, program, mode);
-    }
-
-    function LowerArmAndClaw() {
-        multRotationZ(rc);
-        pushMatrix();
-        LowerArm();
-        popMatrix();
-        multTranslation([0, 0.45, 0]);
-        Claw();
-    }
-
-    function LowerArm() {
-        pushMatrix();
-        multScale([0.1, 0.1, 0.05]);
-        multRotationX(90);
-
-        uploadModelView();
-        CYLINDER.draw(gl, program, mode);
-        popMatrix();
-        multTranslation([0, 0.05, 0]);
-        multScale([0.05, 0.4, 0.05]);
-        multTranslation([0, 0.5, 0]);
-
-        uploadModelView();
-        CUBE.draw(gl, program, mode);
-    }
 
 
-    function Claw() {
-        multRotationY(rg)
-        // Fist
-        pushMatrix();
-        multScale([0.2, 0.05, 0.2]);
-        multTranslation([0, -0.5, 0]);
 
-        uploadModelView();
-        CYLINDER.draw(gl, program, mode);
-        popMatrix();
-        // Maxilla 1
-        pushMatrix();
-        multTranslation([ag, 0, 0]);
-        multScale([0.02, 0.15, 0.1]);
-        multTranslation([0.5, 0.5, 0]);
 
-        uploadModelView();
-        CUBE.draw(gl, program, mode);
-        popMatrix();
-        // Maxilla 2
-        multTranslation([-ag, 0, 0]);
-        multScale([0.02, 0.15, 0.1]);
-        multTranslation([-0.5, 0.5, 0]);
 
-        uploadModelView();
-        CUBE.draw(gl, program, mode);
-    }
 
-    function RobotArm() {
-        multRotationY(rb);
-        pushMatrix();
-        UpperArm();
-        popMatrix();
-        multTranslation([0, 0.7, 0]);
 
-        multTranslation([0, 0.05, 0]);
-        LowerArmAndClaw();
-    }
+
+
+
+
 
     function render() {
         window.requestAnimationFrame(render);
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
         gl.useProgram(program);
 
         // Send the mProjection matrix to the GLSL program
-        mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, 0.01, 3);
+        if (isPerspective) {
+            const fovy = 45 * zoom;
+            mProjection = perspective(fovy, aspect, 0.01, 100);
+        }
+        else {
+            mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, 0.01, 3);
+        }
         uploadProjection(mProjection);
 
-        // Load the ModelView matrix with the Worl to Camera (View) matrix
-        loadMatrix(mView);
+        if (isFourViews)
+            renderFourViews();
+        else {
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            renderScene();
+        }
+    }
 
-        //Claw();
-        //LowerArm();
-        //LowerArmAndClaw();
-        //UpperArm();
-        RobotArm();
+    /**
+     * Renders the scene from the current perspective
+     */
+    function renderScene() {
+        if (isPerspective) {
+            const fovy = 45 * zoom;
+            mProjection = perspective(fovy, aspect, 0.01, 100);
+        }
+        else {
+            mProjection = ortho(-VP_DISTANCE * aspect * zoom, VP_DISTANCE * aspect * zoom, -VP_DISTANCE * zoom, VP_DISTANCE * zoom, 0.01, 100);
+        }
+        uploadProjection(mProjection);
+        loadMatrix(mView);
+        drawFloor();
+    }
+
+    /**
+     * Renders the scene from four different views.
+     */
+    function renderFourViews() {
+        const halfWidth = gl.canvas.width / 2;
+        const halfHeight = gl.canvas.height / 2;
+
+        //Front View
+        gl.viewport(0, halfHeight, halfWidth, halfHeight);
+        mView = lookAt([0, 0, -VP_DISTANCE], [0, 0, 0], [0, 1, 0]);
+        renderScene();
+
+        //Left Side View
+        gl.viewport(halfWidth, halfHeight, halfWidth, halfHeight);
+        mView = lookAt([-VP_DISTANCE, 0, 0], [0, 0, 0], [0, 1, 0]);
+        renderScene();
+
+        //Top View
+        gl.viewport(0, 0, halfWidth, halfHeight);
+        mView = lookAt([0, VP_DISTANCE, 0], [0, 0, 0], [0, 0, -1]);
+        renderScene();
+
+        //Axonometric or Oblique View
+        gl.viewport(halfWidth, 0, halfWidth, halfHeight);
+        mView = !isAxonometric ? obliqueView : axView;
+        renderScene();
+    }
+
+    /**
+     * Draws a cube on the floor at specified x and z coordinates
+     * @param x coordinate x
+     * @param z coordinate z
+     */
+
+    function drawFloorCube(x, z) {
+        pushMatrix();
+        if ((x + z) % 2 === 0) {
+            gl.uniform3f(gl.getUniformLocation(program, "u_color"), WHITE_GREY[0], WHITE_GREY[1], WHITE_GREY[2], WHITE_GREY[3]);
+        } else {
+            gl.uniform3f(gl.getUniformLocation(program, "u_color"), LIGHT_GREY[0], LIGHT_GREY[1], LIGHT_GREY[2], LIGHT_GREY[3]);
+        }
+        multTranslation([x, 0, z]);
+        uploadModelView();
+        CUBE.draw(gl, program, mode);
+        popMatrix();
+    }
+
+    /**
+     * Draws the entire floor using cubes.
+     */
+    function drawFloor() {
+        pushMatrix();
+        multScale([FLOOR_DIAMETER, FLOOR_HEIGHT, FLOOR_DIAMETER]);
+        multTranslation([0, -0.5, 0]);
+        for (let x = -12; x < 12; x++) {
+            for (let z = -12; z < 12; z++) {
+                drawFloorCube(x, z);
+            }
+        }
+        popMatrix();
     }
 }
 
