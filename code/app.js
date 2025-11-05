@@ -7,7 +7,6 @@ import * as CYLINDER from '../../libs/objects/cylinder.js';
 import * as SPHERE from '../../libs/objects/sphere.js';
 
 
-
 /**
  * Constants
  */
@@ -16,6 +15,7 @@ const VP_DISTANCE = 32;
 const GRAY = vec3(0.5, 0.5, 0.5);
 const RED = vec3(1, 0, 0);
 const GREEN = vec3(0, 1, 0);
+const DARK_GREEN = vec3(0.0, 0.3, 0.0);
 const BLUE = vec3(0, 0, 1);
 const YELLOW = vec3(1, 1, 0);
 const BLACK = vec3(0, 0, 0);
@@ -24,6 +24,15 @@ const LIGHT_GREY = vec3(0.7, 0.7, 0.7);
 
 const WHEEL_HEIGHT = 1;
 const WHEEL_LENGHT = 1;
+
+const BODY_BASE_HEIGHT = 0.7;
+const BODY_BASE_LENGHT = 7.5;
+const BODY_BASE_WIDTH = 7.9;
+
+const BODY_SUPPORT_HEIGHT = 0.7;
+const BODY_SUPPORT_LENGHT = 8.5;
+const BODY_SUPPORT_WIDTH = 10;
+
 
 const FLOOR_DIAMETER = 2;
 const FLOOR_HEIGHT = 0.3;
@@ -98,7 +107,7 @@ function setup(shaders) {
         switch (event.key) {
             case 'h':
                 //Toggle this panel
-
+                document.getElementById('commands').classList.toggle('hidden');
                 break;
             case '0':
                 //Toggle 1/4 views
@@ -301,9 +310,6 @@ function setup(shaders) {
 
         const startZ = -(numWheels - 1) * wheelSpacing / 2;
 
-        pushMatrix();
-        multTranslation([0, 0, rb]);
-
         for (let i = 0; i < numWheels; i++) {
             const zPos = startZ + i * wheelSpacing;
 
@@ -323,11 +329,24 @@ function setup(shaders) {
             drawWheel(wheelBaseWidth, zPos);
             popMatrix();
         }
+    }
+
+    function drawBodyBase() {
+        pushMatrix();
+        multTranslation([0, WHEEL_HEIGHT, 0]);
+        multScale([BODY_BASE_WIDTH, BODY_BASE_HEIGHT + 0.5 / 2, BODY_BASE_LENGHT]);
+        multTranslation([0, -WHEEL_HEIGHT / 2 + 0.1, 0]);
+        drawObjects(CUBE, DARK_GREEN);
         popMatrix();
     }
 
-
-
+    function drawBodySupport() {
+        pushMatrix();
+        multTranslation([0, WHEEL_HEIGHT + 0.4, 0]);
+        multScale([BODY_SUPPORT_WIDTH, BODY_SUPPORT_HEIGHT, BODY_SUPPORT_LENGHT]);
+        drawObjects(CUBE, DARK_GREEN);
+        popMatrix();
+    }
 
 
 
@@ -373,7 +392,12 @@ function setup(shaders) {
         uploadProjection(mProjection);
         loadMatrix(mView);
         drawFloor();
+        pushMatrix();
+        multTranslation([0, 0, rb]);
         drawWheels();
+        drawBodyBase();
+        drawBodySupport();
+        popMatrix();
     }
 
     /**
