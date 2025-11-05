@@ -7,6 +7,7 @@ import * as CYLINDER from '../../libs/objects/cylinder.js';
 import * as SPHERE from '../../libs/objects/sphere.js';
 
 
+
 /**
  * Constants
  */
@@ -20,6 +21,9 @@ const YELLOW = vec3(1, 1, 0);
 const BLACK = vec3(0, 0, 0);
 const WHITE_GREY = vec3(0.9, 0.9, 0.9);
 const LIGHT_GREY = vec3(0.7, 0.7, 0.7);
+
+const WHEEL_HEIGHT = 1;
+const WHEEL_LENGHT = 1;
 
 const FLOOR_DIAMETER = 2;
 const FLOOR_HEIGHT = 0.3;
@@ -74,6 +78,7 @@ function setup(shaders) {
     let zoom = 1.0;
 
     /** Model parameters */
+    let wheelRotation = 0;
     let ag = 0;
     let rg = 0;
     let rb = 0;
@@ -148,11 +153,13 @@ function setup(shaders) {
                 break;
             case 'q':
                 //Move forward
-
+                wheelRotation += 1;
+                rb -= 0.1;
                 break;
             case 'e':
                 //Move backward
-
+                wheelRotation -= 1;
+                rb += 0.1;
                 break;
             case 'w':
                 //Raise cannon
@@ -271,8 +278,53 @@ function setup(shaders) {
         gl.uniformMatrix4fv(gl.getUniformLocation(program, name), false, flatten(m));
     }
 
+    function drawWheel(x, z) {
+        pushMatrix();
+        multTranslation([x, WHEEL_HEIGHT / 2, z]);
+        multRotationZ(90);
+        multRotationY(wheelRotation);
 
+        pushMatrix();
+        multScale([WHEEL_LENGHT, WHEEL_HEIGHT, WHEEL_LENGHT]);
+        drawObjects(CYLINDER, BLACK);
+        popMatrix();
 
+        multScale([WHEEL_LENGHT - 0.2, WHEEL_HEIGHT + 0.1, WHEEL_LENGHT - 0.2]);
+        drawObjects(CYLINDER, LIGHT_GREY);
+        popMatrix();
+    }
+
+    function drawWheels() {
+        const wheelSpacing = 1.2;
+        const wheelBaseWidth = 4.5;
+        const numWheels = 6;
+
+        const startZ = -(numWheels - 1) * wheelSpacing / 2;
+
+        pushMatrix();
+        multTranslation([0, 0, rb]);
+
+        for (let i = 0; i < numWheels; i++) {
+            const zPos = startZ + i * wheelSpacing;
+
+            //Left Side
+            pushMatrix();
+            multTranslation([-wheelBaseWidth, WHEEL_HEIGHT / 2, zPos]);
+            multRotationX(-(rb * 360) / 10);
+            multTranslation([wheelBaseWidth, -WHEEL_HEIGHT / 2, -zPos]);
+            drawWheel(-wheelBaseWidth, zPos);
+            popMatrix();
+
+            //Right Side
+            pushMatrix();
+            multTranslation([wheelBaseWidth, WHEEL_HEIGHT / 2, zPos]);
+            multRotationX(-(rb * 360) / 10);
+            multTranslation([-wheelBaseWidth, -WHEEL_HEIGHT / 2, -zPos]);
+            drawWheel(wheelBaseWidth, zPos);
+            popMatrix();
+        }
+        popMatrix();
+    }
 
 
 
@@ -321,6 +373,7 @@ function setup(shaders) {
         uploadProjection(mProjection);
         loadMatrix(mView);
         drawFloor();
+        drawWheels();
     }
 
     /**
