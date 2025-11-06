@@ -248,6 +248,7 @@ function setup(shaders) {
     CUBE.init(gl);
     CYLINDER.init(gl);
     SPHERE.init(gl);
+    TORUS.init(gl);
 
     window.requestAnimationFrame(render);
 
@@ -380,6 +381,14 @@ function setup(shaders) {
         popMatrix();
     }
 
+    function drawHatch() {
+        pushMatrix();
+        multTranslation([0, CABIN_HEIGHT + 0.8, 0]);
+        multScale([3, 1, 3]);
+        drawObjects(SPHERE, EVEN_DARKER_GREEN);
+        popMatrix();
+    }
+
     function drawCannonRotator() {
         pushMatrix();
         multTranslation([0, CABIN_HEIGHT, -2.5]);
@@ -393,8 +402,6 @@ function setup(shaders) {
 
     function drawCannon() {
         pushMatrix();
-        multTranslation([0, CABIN_HEIGHT, -CABIN_LENGHT / 2]);
-        multRotationX(mc);
         multTranslation([0, 0, -2.5]);
         multRotationX(90);
         multScale([0.3, 5, 0.3]);
@@ -402,15 +409,32 @@ function setup(shaders) {
         popMatrix();
     }
 
-    function drawHatch() {
+    function drawCannonMouth() {
         pushMatrix();
-        multTranslation([0, CABIN_HEIGHT + 0.8, 0]);
-        multScale([3, 1, 3]);
-        drawObjects(SPHERE, EVEN_DARKER_GREEN);
+        multTranslation([0, 0, -5]);
+        multRotationX(90);
+        multScale([0.35, 1.5, 0.35]);
+        drawObjects(TORUS, BLACK);
         popMatrix();
     }
 
+    function drawAim() {
+        pushMatrix();
+        multTranslation([0, 0.3, -5.15]);
+        multScale([0.01, 0.3, 0.15]);
+        drawObjects(CUBE, RED);
+        popMatrix();
+    }
 
+    function drawCannonComplete() {
+        pushMatrix();
+        multTranslation([0, CABIN_HEIGHT, -CABIN_LENGHT / 2]);
+        multRotationX(mc);
+        drawCannon();
+        drawCannonMouth();
+        drawAim();
+        popMatrix();
+    }
 
 
     function render() {
@@ -463,7 +487,7 @@ function setup(shaders) {
         drawCannonRotator();
 
         pushMatrix();
-        drawCannon();
+        drawCannonComplete();
 
         popMatrix();
 
