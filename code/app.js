@@ -22,8 +22,8 @@ const DARKEST_GREEN = vec3(0.0, 0.1, 0.0);
 const BLUE = vec3(0, 0, 1);
 const YELLOW = vec3(1, 1, 0);
 const BLACK = vec3(0, 0, 0);
-const WHITE_GREY = vec3(0.9, 0.9, 0.9);
-const LIGHT_GREY = vec3(0.7, 0.7, 0.7);
+const WHITE_GRAY = vec3(0.9, 0.9, 0.9);
+const LIGHT_GRAY = vec3(0.7, 0.7, 0.7);
 const DARK_GREY = vec3(0.3, 0.3, 0.3);
 
 const WHEEL_HEIGHT = 1;
@@ -117,6 +117,7 @@ function setup(shaders) {
             case 'h':
                 //Toggle this panel
                 document.getElementById('commands').classList.toggle('hidden');
+                document.getElementById('anglesDisplay').classList.toggle('hidden');
                 break;
             case '0':
                 //Toggle 1/4 views
@@ -286,14 +287,6 @@ function setup(shaders) {
             mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, -10, 999);
     }
 
-    function drawObjects(obj, color) {
-        uploadModelView();
-        const uColor = gl.getUniformLocation(program, "u_color");
-        gl.uniform3fv(uColor, color);
-        obj.draw(gl, program, gl.TRIANGLES);
-        gl.uniform3fv(uColor, BLACK);
-        obj.draw(gl, program, gl.LINES);
-    }
 
     function uploadProjection() {
         uploadMatrix("u_projection", mProjection);
@@ -305,6 +298,20 @@ function setup(shaders) {
 
     function uploadMatrix(name, m) {
         gl.uniformMatrix4fv(gl.getUniformLocation(program, name), false, flatten(m));
+    }
+
+    function drawObjects(obj, color) {
+        uploadModelView();
+        const uColor = gl.getUniformLocation(program, "u_color");
+        gl.uniform3fv(uColor, color);
+
+        if (mode === gl.LINES) {
+            obj.draw(gl, program, gl.LINES);
+        } else {
+            obj.draw(gl, program, gl.TRIANGLES);
+            gl.uniform3fv(uColor, BLACK);
+            obj.draw(gl, program, gl.LINES);
+        }
     }
 
     function drawWheel(x, z) {
@@ -319,7 +326,7 @@ function setup(shaders) {
         popMatrix();
 
         multScale([WHEEL_LENGHT - 0.2, WHEEL_HEIGHT + 0.1, WHEEL_LENGHT - 0.2]);
-        drawObjects(CYLINDER, LIGHT_GREY);
+        drawObjects(CYLINDER, LIGHT_GRAY);
         popMatrix();
     }
 
@@ -534,14 +541,11 @@ function setup(shaders) {
 
     function drawFloorCube(x, z) {
         pushMatrix();
-        if ((x + z) % 2 === 0) {
-            gl.uniform3f(gl.getUniformLocation(program, "u_color"), WHITE_GREY[0], WHITE_GREY[1], WHITE_GREY[2], WHITE_GREY[3]);
-        } else {
-            gl.uniform3f(gl.getUniformLocation(program, "u_color"), LIGHT_GREY[0], LIGHT_GREY[1], LIGHT_GREY[2], LIGHT_GREY[3]);
-        }
+
         multTranslation([x, 0, z]);
-        uploadModelView();
-        CUBE.draw(gl, program, mode);
+        const color = (x + z) % 2 === 0 ? WHITE_GRAY : LIGHT_GRAY;
+        drawObjects(CUBE, color);
+
         popMatrix();
     }
 
