@@ -6,21 +6,23 @@ import * as CUBE from '../../libs/objects/cube.js';
 import * as CYLINDER from '../../libs/objects/cylinder.js';
 import * as SPHERE from '../../libs/objects/sphere.js';
 
-
 /**
  * Constants
  */
-const VP_DISTANCE = 32;
+const VP_DISTANCE = 35;
 
 const GRAY = vec3(0.5, 0.5, 0.5);
 const RED = vec3(1, 0, 0);
 const GREEN = vec3(0, 1, 0);
-const DARK_GREEN = vec3(0.0, 0.3, 0.0);
+const DARK_GREEN = vec3(0.0, 0.25, 0.0);
+const EVEN_DARKER_GREEN = vec3(0.0, 0.2, 0.0);
+const DARKEST_GREEN = vec3(0.0, 0.1, 0.0);
 const BLUE = vec3(0, 0, 1);
 const YELLOW = vec3(1, 1, 0);
 const BLACK = vec3(0, 0, 0);
 const WHITE_GREY = vec3(0.9, 0.9, 0.9);
 const LIGHT_GREY = vec3(0.7, 0.7, 0.7);
+const DARK_GREY = vec3(0.3, 0.3, 0.3);
 
 const WHEEL_HEIGHT = 1;
 const WHEEL_LENGHT = 1;
@@ -29,9 +31,14 @@ const BODY_BASE_HEIGHT = 0.7;
 const BODY_BASE_LENGHT = 7.5;
 const BODY_BASE_WIDTH = 7.9;
 
-const BODY_SUPPORT_HEIGHT = 0.7;
 const BODY_SUPPORT_LENGHT = 8.5;
 const BODY_SUPPORT_WIDTH = 10;
+
+const CABIN_HEIGHT = 3;
+const CABIN_LENGHT = 5;
+const CABIN_WIDTH = 5;
+
+const CANNON_ROTATOR_VALUES = 1;
 
 
 const FLOOR_DIAMETER = 2;
@@ -88,10 +95,10 @@ function setup(shaders) {
 
     /** Model parameters */
     let wheelRotation = 0;
-    let ag = 0;
-    let rg = 0;
-    let rb = 0;
+    let cannonRotator = 0;
+    let mt = 0;
     let rc = 0;
+    let mc = 0;
 
     resize_canvas();
     window.addEventListener("resize", resize_canvas);
@@ -162,29 +169,39 @@ function setup(shaders) {
                 break;
             case 'q':
                 //Move forward
-                wheelRotation += 1;
-                rb -= 0.1;
+                if (mt > -22) {
+                    wheelRotation += 1;
+                    mt -= 0.1;
+                }
                 break;
             case 'e':
                 //Move backward
-                wheelRotation -= 1;
-                rb += 0.1;
+                if (mt < 20) {
+                    wheelRotation -= 1;
+                    mt += 0.1;
+                }
                 break;
             case 'w':
                 //Raise cannon
-
+                if (mc < 45) {
+                    cannonRotator += 1;
+                    mc += 1;
+                }
                 break;
             case 's':
                 //Lower cannon
-
+                if (mc > -10) {
+                    cannonRotator -= 1;
+                    mc -= 1;
+                }
                 break;
             case 'a':
                 //Rotate cabin ccw
-
+                if (rc < 180) rc += 1;
                 break;
             case 'd':
                 //Rotate cabin cw
-
+                if (rc > -180) rc -= 1;
                 break;
             case 'r':
                 //Reset view parameters
@@ -316,7 +333,7 @@ function setup(shaders) {
             //Left Side
             pushMatrix();
             multTranslation([-wheelBaseWidth, WHEEL_HEIGHT / 2, zPos]);
-            multRotationX(-(rb * 360) / 10);
+            multRotationX(-(mt * 360) / 10);
             multTranslation([wheelBaseWidth, -WHEEL_HEIGHT / 2, -zPos]);
             drawWheel(-wheelBaseWidth, zPos);
             popMatrix();
@@ -324,7 +341,7 @@ function setup(shaders) {
             //Right Side
             pushMatrix();
             multTranslation([wheelBaseWidth, WHEEL_HEIGHT / 2, zPos]);
-            multRotationX(-(rb * 360) / 10);
+            multRotationX(-(mt * 360) / 10);
             multTranslation([-wheelBaseWidth, -WHEEL_HEIGHT / 2, -zPos]);
             drawWheel(wheelBaseWidth, zPos);
             popMatrix();
@@ -342,14 +359,43 @@ function setup(shaders) {
 
     function drawBodySupport() {
         pushMatrix();
-        multTranslation([0, WHEEL_HEIGHT + 0.4, 0]);
-        multScale([BODY_SUPPORT_WIDTH, BODY_SUPPORT_HEIGHT, BODY_SUPPORT_LENGHT]);
-        drawObjects(CUBE, DARK_GREEN);
+        multTranslation([0, WHEEL_HEIGHT + 0.5, 0]);
+        multScale([BODY_SUPPORT_WIDTH, BODY_BASE_HEIGHT + 0.2, BODY_SUPPORT_LENGHT]);
+        drawObjects(CUBE, EVEN_DARKER_GREEN);
         popMatrix();
     }
 
+    function drawBody() {
+        drawBodyBase();
+        drawBodySupport();
+    }
 
+    function drawCabin() {
+        pushMatrix();
+        multTranslation([0, WHEEL_HEIGHT + 1.9, 0]);
+        multScale([CABIN_WIDTH + 0.5, CABIN_HEIGHT - 1, CABIN_LENGHT + 0.5]);
+        drawObjects(CUBE, DARKEST_GREEN);
+        popMatrix();
+    }
 
+    function drawCannonRotator() {
+        pushMatrix();
+        multTranslation([0, CABIN_HEIGHT, -2.5]);
+        multRotationX(90);
+        multRotationZ(90);
+        multScale([CANNON_ROTATOR_VALUES, CANNON_ROTATOR_VALUES, CANNON_ROTATOR_VALUES]);
+        drawObjects(CYLINDER, DARK_GREY);
+        popMatrix();
+    }
+
+    function drawCannon() {
+        pushMatrix();
+        multTranslation([0, CABIN_HEIGHT, -5.5]);
+        multRotationX(90);
+        multScale([0.3, 5, 0.3]);
+        drawObjects(CYLINDER, BLACK);
+        popMatrix();
+    }
 
 
 
@@ -391,12 +437,26 @@ function setup(shaders) {
         }
         uploadProjection(mProjection);
         loadMatrix(mView);
+
         drawFloor();
         pushMatrix();
-        multTranslation([0, 0, rb]);
+        multTranslation([0, 0, mt]);
         drawWheels();
-        drawBodyBase();
-        drawBodySupport();
+        drawBody();
+
+        pushMatrix();
+        multRotationY(rc);
+        drawCabin();
+        drawCannonRotator();
+
+        pushMatrix();
+        multRotationX(mc);
+        drawCannon();
+
+        popMatrix();
+
+        popMatrix();
+
         popMatrix();
     }
 
