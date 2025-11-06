@@ -5,11 +5,13 @@ import { modelView, loadMatrix, multRotationX, multRotationY, multRotationZ, mul
 import * as CUBE from '../../libs/objects/cube.js';
 import * as CYLINDER from '../../libs/objects/cylinder.js';
 import * as SPHERE from '../../libs/objects/sphere.js';
+import * as TORUS from '../../libs/objects/torus.js';
+
 
 /**
  * Constants
  */
-const VP_DISTANCE = 35;
+const VP_DISTANCE = 28;
 
 const GRAY = vec3(0.5, 0.5, 0.5);
 const RED = vec3(1, 0, 0);
@@ -85,7 +87,7 @@ function setup(shaders) {
 
     let program = buildProgramFromSources(gl, shaders["shader.vert"], shaders["shader.frag"]);
 
-    let mProjection = ortho(-VP_DISTANCE * aspect, VP_DISTANCE * aspect, -VP_DISTANCE, VP_DISTANCE, -3 * VP_DISTANCE, 3 * VP_DISTANCE);
+    let mProjection = ortho(-VP_DISTANCE * aspect, VP_DISTANCE * aspect, -VP_DISTANCE, VP_DISTANCE, -30 * VP_DISTANCE, 30 * VP_DISTANCE);
 
     let axView = mult(lookAt([0, 0, VP_DISTANCE], [0, 0, 0], [0, 1, 0]), mult(rotateX(gamma), rotateY(theta)));
     let obliqueView = mult(lookAt([VP_DISTANCE, VP_DISTANCE / 2, VP_DISTANCE], [0, 0, 0], [0, 1, 0]), mult(rotateX(0), rotateY(0)));
@@ -125,19 +127,19 @@ function setup(shaders) {
                 //Front view
                 isPerspective = false;
                 isFourViews = false;
-                mView = lookAt([0, 0.6, 1], [0, 0.6, 0], [0, 1, 0]);
+                mView = lookAt([0, 0, -VP_DISTANCE], [0, 0, 0], [0, 1, 0]);
                 break;
             case '2':
                 //Left view
                 isPerspective = false;
                 isFourViews = false;
-                mView = lookAt([-1, 0.6, 0], [0, 0.6, 0], [0, 1, 0]);
+                mView = lookAt([-VP_DISTANCE, 0, 0], [0, 0, 0], [0, 1, 0]);
                 break;
             case '3':
                 //Top view
                 isPerspective = false;
                 isFourViews = false;
-                mView = lookAt([0, 2, 0], [0, 0.6, 0], [0, 0, 1]);
+                mView = lookAt([0, VP_DISTANCE, 0], [0, 0, 0], [0, 0, -1]);
                 break;
             case '4':
                 //4th view
@@ -183,15 +185,15 @@ function setup(shaders) {
                 break;
             case 'w':
                 //Raise cannon
-                if (mc < 45) {
-                    cannonRotator += 1;
+                if (mc < 40) {
+                    cannonRotator -= 1;
                     mc += 1;
                 }
                 break;
             case 's':
                 //Lower cannon
                 if (mc > -10) {
-                    cannonRotator -= 1;
+                    cannonRotator += 1;
                     mc -= 1;
                 }
                 break;
@@ -280,7 +282,7 @@ function setup(shaders) {
             mProjection = perspective(fovy, aspect, 0.01, 100);
         }
         else
-            mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, 0.01, 3);
+            mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, -10, 999);
     }
 
     function drawObjects(obj, color) {
@@ -383,6 +385,7 @@ function setup(shaders) {
         multTranslation([0, CABIN_HEIGHT, -2.5]);
         multRotationX(90);
         multRotationZ(90);
+        multRotationY(cannonRotator);
         multScale([CANNON_ROTATOR_VALUES, CANNON_ROTATOR_VALUES, CANNON_ROTATOR_VALUES]);
         drawObjects(CYLINDER, DARK_GREY);
         popMatrix();
@@ -390,10 +393,20 @@ function setup(shaders) {
 
     function drawCannon() {
         pushMatrix();
-        multTranslation([0, CABIN_HEIGHT, -5.5]);
+        multTranslation([0, CABIN_HEIGHT, -CABIN_LENGHT / 2]);
+        multRotationX(mc);
+        multTranslation([0, 0, -2.5]);
         multRotationX(90);
         multScale([0.3, 5, 0.3]);
         drawObjects(CYLINDER, BLACK);
+        popMatrix();
+    }
+
+    function drawHatch() {
+        pushMatrix();
+        multTranslation([0, CABIN_HEIGHT + 0.8, 0]);
+        multScale([3, 1, 3]);
+        drawObjects(SPHERE, EVEN_DARKER_GREEN);
         popMatrix();
     }
 
@@ -412,7 +425,7 @@ function setup(shaders) {
             mProjection = perspective(fovy, aspect, 0.01, 100);
         }
         else {
-            mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, 0.01, 3);
+            mProjection = ortho(-aspect * zoom, aspect * zoom, -zoom, zoom, -10, 999);
         }
         uploadProjection(mProjection);
 
@@ -430,10 +443,10 @@ function setup(shaders) {
     function renderScene() {
         if (isPerspective) {
             const fovy = 45 * zoom;
-            mProjection = perspective(fovy, aspect, 0.01, 100);
+            mProjection = perspective(fovy, aspect, 0.001, 999);
         }
         else {
-            mProjection = ortho(-VP_DISTANCE * aspect * zoom, VP_DISTANCE * aspect * zoom, -VP_DISTANCE * zoom, VP_DISTANCE * zoom, 0.01, 100);
+            mProjection = ortho(-VP_DISTANCE * aspect * zoom, VP_DISTANCE * aspect * zoom, -VP_DISTANCE * zoom, VP_DISTANCE * zoom, -10, 999);
         }
         uploadProjection(mProjection);
         loadMatrix(mView);
@@ -450,10 +463,11 @@ function setup(shaders) {
         drawCannonRotator();
 
         pushMatrix();
-        multRotationX(mc);
         drawCannon();
 
         popMatrix();
+
+        drawHatch();
 
         popMatrix();
 
