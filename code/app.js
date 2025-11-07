@@ -42,7 +42,6 @@ const CABIN_WIDTH = 5;
 
 const CANNON_ROTATOR_VALUES = 1;
 
-
 const FLOOR_DIAMETER = 2;
 const FLOOR_HEIGHT = 0.3;
 
@@ -152,19 +151,21 @@ function setup(shaders) {
             case '8':
                 //Toggle 4th view (Oblique vs Axonometric)
                 isPerspective = false;
-                isFourViews = false;
-                if (!isAxonometric) {
-                    mView = obliqueView;
+                if (mView === axView || mView === obliqueView) {
+                    if (isAxonometric) {
+                        mView = obliqueView;
+                    }
+                    else {
+                        mView = axView;
+                    }
+                    isAxonometric = !isAxonometric;
                 }
-                else {
-                    mView = axView;
-                }
-                isAxonometric = !isAxonometric
                 break;
             case '9':
                 //Parallel vs Perspective
-                isFourViews = false;
-                isPerspective = !isPerspective;
+                if (isFourViews || (mView !== axView && mView !== obliqueView)) {
+                    isPerspective = !isPerspective;
+                }
                 break;
             case ' ':
                 //Toggle wireframe/solid
@@ -471,8 +472,8 @@ function setup(shaders) {
     /**
      * Renders the scene from the current perspective
      */
-    function renderScene() {
-        if (isPerspective) {
+    function renderScene(usePerspective = isPerspective) {
+        if (usePerspective) {
             const fovy = 45 * zoom;
             mProjection = perspective(fovy, aspect, 0.001, 999);
         }
@@ -515,22 +516,22 @@ function setup(shaders) {
         //Front View
         gl.viewport(0, halfHeight, halfWidth, halfHeight);
         mView = lookAt([0, 0, -VP_DISTANCE], [0, 0, 0], [0, 1, 0]);
-        renderScene();
+        renderScene(isPerspective);
 
         //Left Side View
         gl.viewport(halfWidth, halfHeight, halfWidth, halfHeight);
         mView = lookAt([-VP_DISTANCE, 0, 0], [0, 0, 0], [0, 1, 0]);
-        renderScene();
+        renderScene(isPerspective);
 
         //Top View
         gl.viewport(0, 0, halfWidth, halfHeight);
         mView = lookAt([0, VP_DISTANCE, 0], [0, 0, 0], [0, 0, -1]);
-        renderScene();
+        renderScene(isPerspective);
 
         //Axonometric or Oblique View
         gl.viewport(halfWidth, 0, halfWidth, halfHeight);
         mView = !isAxonometric ? obliqueView : axView;
-        renderScene();
+        renderScene(false);
     }
 
     /**
