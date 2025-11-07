@@ -1,5 +1,5 @@
 import { buildProgramFromSources, loadShadersFromURLS, setupWebGL } from "../libs/utils.js";
-import { ortho, lookAt, flatten, vec3, rotateX, rotateY, mult, perspective } from "../libs/MV.js";
+import { ortho, lookAt, flatten, vec3, rotateX, rotateY, mult, perspective, vec4, normalize, add, scale } from "../libs/MV.js";
 import { modelView, loadMatrix, multRotationX, multRotationY, multRotationZ, multScale, multTranslation, popMatrix, pushMatrix } from "../libs/stack.js";
 
 import * as CUBE from '../../libs/objects/cube.js';
@@ -13,14 +13,10 @@ import * as TORUS from '../../libs/objects/torus.js';
  */
 const VP_DISTANCE = 28;
 
-const GRAY = vec3(0.5, 0.5, 0.5);
 const RED = vec3(1, 0, 0);
-const GREEN = vec3(0, 1, 0);
 const DARK_GREEN = vec3(0.0, 0.25, 0.0);
 const EVEN_DARKER_GREEN = vec3(0.0, 0.2, 0.0);
 const DARKEST_GREEN = vec3(0.0, 0.1, 0.0);
-const BLUE = vec3(0, 0, 1);
-const YELLOW = vec3(1, 1, 0);
 const BLACK = vec3(0, 0, 0);
 const WHITE_GRAY = vec3(0.9, 0.9, 0.9);
 const LIGHT_GRAY = vec3(0.7, 0.7, 0.7);
@@ -45,6 +41,11 @@ const CANNON_ROTATOR_VALUES = 1;
 const FLOOR_DIAMETER = 2;
 const FLOOR_HEIGHT = 0.3;
 
+const GRAVITY = vec3(0, -9.8, 0);
+const INITIAL_VELOCITY = 20;
+const DT = 0.016;
+const TOMATO_SIZE = 0.3;
+
 /**
  * Flag to determine if four views are displayed
  * @type {boolean}
@@ -62,6 +63,12 @@ let isAxonometric = false;
  * @type {boolean}
  */
 let isPerspective = false;
+
+/**
+ * Array to store active tomatoes
+ * Each tomato has: position, velocity
+ */
+let tomatoes = [];
 
 function setup(shaders) {
     let canvas = document.getElementById("gl-canvas");
@@ -110,6 +117,8 @@ function setup(shaders) {
             zoom *= 1.1; // Zoom in
         else zoom /= 1.1; // Zoom out
     });
+
+    let zKeyPressed = false;
 
     document.onkeydown = function (event) {
         switch (event.key) {
@@ -207,6 +216,13 @@ function setup(shaders) {
                 //Rotate cabin cw
                 if (rc > -180) rc -= 1;
                 break;
+            case 'z':
+                //Shoot tomato!
+                if (!zKeyPressed) {
+                    shootTomato();
+                    zKeyPressed = true;
+                }
+                break;
             case 'r':
                 //Reset view parameters
                 isFourViews = false;
@@ -244,6 +260,12 @@ function setup(shaders) {
         }
     }
 
+    document.onkeyup = function (event) {
+        if (event.key === 'z') {
+            zKeyPressed = false;
+        }
+    }
+
     gl.clearColor(0.3, 0.3, 0.3, 1.0);
     gl.enable(gl.DEPTH_TEST);   // Enables Z-buffer depth test
 
@@ -254,6 +276,78 @@ function setup(shaders) {
 
     window.requestAnimationFrame(render);
 
+    /**
+     * Calculate cannon tip position and direction in world coordinates
+     */
+    function getCannonTipAndDirection() {
+        const localTip = vec4(0, 0, -5, 1);
+        const localDir = vec4(0, 0, -1, 0);
+
+        loadMatrix(mult(lookAt([0, 0, 0], [0, 0, 0], [0, 1, 0]), mult(rotateX(0), rotateY(0))));
+
+        multTranslation([0, 0, mt]);
+
+        multRotationY(rc);
+
+        multTranslation([0, CABIN_HEIGHT, -CABIN_LENGHT / 2]);
+
+        multRotationX(mc);
+
+        const transform = modelView();
+
+        const worldTip = mult(transform, localTip);
+        const worldDir = mult(transform, localDir);
+
+        return {
+            position: vec3(worldTip[0], worldTip[1], worldTip[2]),
+            direction: normalize(vec3(worldDir[0], worldDir[1], worldDir[2]))
+        };
+    }
+
+    /**
+     * Shoot a tomato from the cannon
+     */
+    function shootTomato() {
+        const { position, direction } = getCannonTipAndDirection();
+
+        const velocity = scale(INITIAL_VELOCITY, direction);
+
+        tomatoes.push({
+            position: position,
+            velocity: velocity
+        });
+    }
+
+    /**
+     * Update all tomatoes physics
+     */
+    function updateTomatoes() {
+        for (let i = tomatoes.length - 1; i >= 0; i--) {
+            const tomato = tomatoes[i];
+
+            tomato.position = add(tomato.position, scale(DT, tomato.velocity));
+            tomato.velocity = add(tomato.velocity, scale(DT, GRAVITY));
+
+            if (tomato.position[1] < 0 ||
+                Math.abs(tomato.position[0]) > 100 ||
+                Math.abs(tomato.position[2]) > 100) {
+                tomatoes.splice(i, 1);
+            }
+        }
+    }
+
+    /**
+     * Draw all active tomatoes
+     */
+    function drawTomatoes() {
+        for (const tomato of tomatoes) {
+            pushMatrix();
+            multTranslation(tomato.position);
+            multScale([TOMATO_SIZE, TOMATO_SIZE, TOMATO_SIZE]);
+            drawObjects(SPHERE, RED);
+            popMatrix();
+        }
+    }
 
     function getAxonometricView(gamma, theta) {
         loadMatrix(lookAt([0, 0, VP_DISTANCE], [0, 0, 0], [0, 1, 0]));
@@ -448,6 +542,9 @@ function setup(shaders) {
     function render() {
         window.requestAnimationFrame(render);
 
+        // Update tomato physics
+        updateTomatoes();
+
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         gl.useProgram(program);
 
@@ -484,6 +581,8 @@ function setup(shaders) {
         loadMatrix(mView);
 
         drawFloor();
+
+        // Draw tank
         pushMatrix();
         multTranslation([0, 0, mt]);
         drawWheels();
@@ -496,14 +595,13 @@ function setup(shaders) {
 
         pushMatrix();
         drawCannonComplete();
-
         popMatrix();
 
         drawHatch();
-
+        popMatrix();
         popMatrix();
 
-        popMatrix();
+        drawTomatoes();
     }
 
     /**
@@ -539,7 +637,6 @@ function setup(shaders) {
      * @param x coordinate x
      * @param z coordinate z
      */
-
     function drawFloorCube(x, z) {
         pushMatrix();
 
